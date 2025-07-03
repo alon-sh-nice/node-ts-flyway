@@ -4,6 +4,6 @@
       "outDir": "./dist-test"
   },
   "include": [
-      "test/**/*"
+    "tests/**/*"
   ]
 }
