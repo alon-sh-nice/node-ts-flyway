@@ -1,5 +1,5 @@
 {
-  "name": "node-flyway",
+  "name": "node-ts-flyway",
   "version": "0.0.0",
   "description": "Apply version control to databases from within a Node.js application.",
   "main": "dist/index.js",
