@@ -1,14 +1,13 @@
-import { readFile } from "fs/promises";
-import { join } from "path";
-import { FlywayVersion, getFlywayCliVersionForHash } from "../../internal/flyway-version";
+import {readFile} from "fs/promises";
+import {join, basename} from "path"; // added basename import
 import {
     existsAndIsDirectory,
     findAllExecutableFilesInDirectory,
     getHostOperatingSystem
 } from "../../utility/utility";
 import md5 = require("md5");
-import { FlywayExecutable } from "../flyway-cli";
-import { glob } from "glob";
+import {FlywayExecutable} from "../flyway-cli";
+import {glob} from "glob";
 
 
 export class FlywayCliService {
@@ -18,28 +17,18 @@ export class FlywayCliService {
     */
     static async getFlywayCliDetails(
         flywayCliDirectory: string
-    ): Promise<{version: FlywayVersion, hash: string} | undefined> {
-
-        if(!await existsAndIsDirectory(flywayCliDirectory)) {
+    ): Promise<string | undefined> {
+        if (!await existsAndIsDirectory(flywayCliDirectory)) {
             return undefined;
         }
 
-        const hash = await this.getFlywayCliHash(flywayCliDirectory);
-
-        if(hash == undefined) {
-            return undefined;
+        const dirName = basename(flywayCliDirectory);
+        const prefix = "flyway-";
+        if (dirName.startsWith(prefix)) {
+            return dirName.substring(prefix.length);
         }
 
-        try {
-            return {
-                version: getFlywayCliVersionForHash(hash),
-                hash
-            };
-        }
-        catch(err) {
-            console.log(err)
-            return undefined;
-        }
+        return undefined;
     }
 
     /*
@@ -51,23 +40,22 @@ export class FlywayCliService {
     ): Promise<string | undefined> {
         const paths = await FlywayCliService.getFlywayCommandLineFiles(flywayCliDirectory);
 
-        if(paths.length == 0) {
+        if (paths.length == 0) {
             return undefined;
         }
 
-        if(paths.length > 1) {
+        if (paths.length > 1) {
             throw new Error("Expected single filepath.");
         }
 
         const content = await readFile(paths[0]);
 
-        if(content == null) {
+        if (content == null) {
             throw new Error();
         }
 
         return md5(content);
     }
-
 
 
     static async getExecutableFromFlywayCliDirectory(
@@ -87,8 +75,7 @@ export class FlywayCliService {
                 throw new Error(
                     `Expecting only one executable Flyway CLI to be found. Instead found multiple executable files: ${executableFiles.map(ex => ex.name)}`
                 );
-            }
-            else {
+            } else {
                 join(flywayCliDirectory, executableFilesWithCorrectName[0].name);
             }
         }

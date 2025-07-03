@@ -1,6 +1,5 @@
 import {DEFAULT_FLYWAY_CLI_DIRECTORY, DEFAULT_FLYWAY_VERSION} from "./internal/defaults";
 import {FlywayInternal} from "./internal/flyway-internal";
-import {FlywayVersion} from "./internal/flyway-version";
 import {
     FlywayBaselineResponse,
     FlywayCleanResponse,
@@ -16,7 +15,7 @@ import {enableLogging} from "./utility/logger";
 
 export class Flyway {
 
-    private static defaultVersion: FlywayVersion = DEFAULT_FLYWAY_VERSION;
+    private static defaultVersion: string = DEFAULT_FLYWAY_VERSION;
 
     constructor(
         private config: FlywayConfig,
@@ -61,18 +60,21 @@ export class Flyway {
         return FlywayInternal.repair(mergedConfig, Flyway.defaultVersion, this.executionOptions);
     }
 
-    public static install(location?: string, version?: FlywayVersion, debug?: boolean): Promise<NodeFlywayResponse<any>["additionalDetails"]> {
+    public static install(location?: string, version?: string, debug?: boolean): Promise<NodeFlywayResponse<any>["additionalDetails"]> {
 
         if (debug) {
             enableLogging();
         }
+        // Use provided version or default version
+        const versionToInstall = version || Flyway.defaultVersion;
+        // Optionally, use getUrlComponentsForFlywayVersion to obtain additional metadata if needed
+        // const versionInfo = getUrlComponentsForFlywayVersion(versionToInstall);
 
         return FlywayInternal.install(
             location || DEFAULT_FLYWAY_CLI_DIRECTORY,
-            version || Flyway.defaultVersion
+            versionToInstall
         );
     }
-
 
 
     private mergeConfig(partialConfig?: Partial<FlywayConfig>): FlywayConfig {

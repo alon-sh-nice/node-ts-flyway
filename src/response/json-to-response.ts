@@ -18,7 +18,6 @@ export class ConvertJsonToResponse {
 
         try {
             const error: any = cast(JSON.parse(json), toReference("FlywayErrorWrapper"));
-
             if(error.error) {
                 response.error = error.error;
             }
@@ -30,13 +29,12 @@ export class ConvertJsonToResponse {
             } 
         }
 
-
         try {
             const flywayResponse: T = removeProperties(
                 cast(JSON.parse(json), toReference(reference)),
                 mapToPropertyNames(properties)
             );
-
+            // Use an intermediate variable to access dynamic properties
             if(flywayResponse) {
                 response.flywayResponse = flywayResponse;
             }
@@ -44,7 +42,6 @@ export class ConvertJsonToResponse {
         catch (err) {
             ConvertJsonToResponse.logger.log(err);
         }
-
 
         return this.handleParsingError(response);
     }

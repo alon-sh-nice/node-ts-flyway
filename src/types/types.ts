@@ -78,51 +78,16 @@ export type FlywayAdvancedConfig = {
     postgresqlTransactionLock?: boolean
 }
 
-// Not available for now
-type FlywayTeamsConfig = {
-    // Connection
-    jdbcProperties?: Map<string, string>,
-
-    //General
-    batch?: boolean,
-    cherryPick?: string
-    detectEncoding?: boolean,
-    dryRunOutput?: string,
-    errorOverrides: string,
-    kerborosConfigFile?: string
-    licenseKey?: string
-    outputQueryResults?: boolean,
-    skipExecutingMigrations?: boolean
-    stream?: boolean,
-
-    // Migrations
-    undoSqlMigrationPrefix?: string,
-    baselineMigrationPrefix?: string,
-
-    // Oracle
-    oracle?: {
-        sqlPlus: boolean,
-        sqlPlusWarn: boolean,
-        kerberosCacheFile: string,
-        walletLocation: string
-    },
-}
-
-
 export type CommandLineOptionMap = { [Property in (keyof FlywayBasicConfig | keyof  FlywayAdvancedConfig)] : string };
 
 export type FlywayCommand = "migrate" | "clean" | "info" | "validate" | "undo" | "baseline" | "repair";
 
 
 export type ExecutionOptions = {
-    flywayCliLocation?: string,
     flywayCliStrategy?: FlywayCliStrategy
 };
 
 export enum FlywayCliStrategy {
-    LOCAL_CLI_ONLY,
-    LOCAL_CLI_ONLY_OPTIMIZED,
-    LOCAL_CLI_WITH_DOWNLOAD_FALLBACK,
     DOWNLOAD_CLI_ONLY,
     DOWNLOAD_CLI_AND_CLEAN
 }

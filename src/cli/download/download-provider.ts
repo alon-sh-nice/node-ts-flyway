@@ -1,6 +1,5 @@
 import decompress from "decompress";
 import {mkdir, rm, stat} from "fs/promises";
-import {FlywayVersion} from "../../internal/flyway-version";
 import {hasFullPermissionsOnFile} from "../../utility/utility";
 import {FlywayCliProvider} from "../flyway-cli-provider";
 // @ts-ignore - fix missing types
@@ -33,7 +32,7 @@ export class DownloadProvider extends FlywayCliProvider {
     }
 
 
-    async getFlywayCli(flywayVersion: FlywayVersion): Promise<FlywayCli> {
+    async getFlywayCli(flywayVersion: string): Promise<FlywayCli> {
 
         /* 
             Check directory exists otherwise create it.
@@ -55,7 +54,7 @@ export class DownloadProvider extends FlywayCliProvider {
             throw new Error();
         }
 
-        DownloadProvider.logger.log(`Downloading Flyway CLI ${FlywayVersion[flywayVersion]}...`)
+        DownloadProvider.logger.log(`Downloading Flyway CLI ${flywayVersion}...`)
 
         const archiveLocation = this.flywayCliDownloader.getFlywayCliDownloadLocation(flywayVersion, this.saveDirectory);
 
@@ -71,13 +70,13 @@ export class DownloadProvider extends FlywayCliProvider {
 
         const saveDirectoryAbsolutePath = resolve(this.saveDirectory);
 
-        DownloadProvider.logger.log(`Successfully downloaded Flyway CLI ${FlywayVersion[flywayVersion]} to location: ${this.saveDirectory}`)
+        DownloadProvider.logger.log(`Successfully downloaded Flyway CLI ${flywayVersion} to location: ${this.saveDirectory}`)
 
         const decompressedFiles = await this.decompressFiles(archiveLocation, saveDirectoryAbsolutePath);
         
         const extractedDirectory = this.getExtractLocationFromDecompressedFiles(decompressedFiles, this.saveDirectory);
 
-        DownloadProvider.logger.log(`Successfully extracted Flyway CLI ${FlywayVersion[flywayVersion]} to location: ${extractedDirectory}`)
+        DownloadProvider.logger.log(`Successfully extracted Flyway CLI ${flywayVersion} to location: ${extractedDirectory}`)
 
         await this.removeArchiveFile(archiveLocation);
         
@@ -93,8 +92,7 @@ export class DownloadProvider extends FlywayCliProvider {
             flywayVersion,
             FlywayCliSource.DOWNLOAD,
             extractedDirectory,
-            executable,
-            hash
+            executable
         );
     }
 
@@ -147,4 +145,3 @@ export class DownloadProvider extends FlywayCliProvider {
 
     }
 }
-

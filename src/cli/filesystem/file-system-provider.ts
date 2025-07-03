@@ -1,10 +1,9 @@
-import {readdir} from "fs/promises";
-import {FlywayVersion} from "../../internal/flyway-version";
-import {FlywayCliSource} from "../../types/types";
-import {getLogger} from "../../utility/logger";
-import {FlywayCli} from "../flyway-cli";
-import {FlywayCliProvider} from "../flyway-cli-provider";
-import {FlywayCliService} from "../service/flyway-cli-service";
+import { readdir } from "fs/promises";
+import { FlywayCliSource } from "../../types/types";
+import { getLogger } from "../../utility/logger";
+import { FlywayCli } from "../flyway-cli";
+import { FlywayCliProvider } from "../flyway-cli-provider";
+import { FlywayCliService } from "../service/flyway-cli-service";
 import path = require("path");
 
 
@@ -15,7 +14,7 @@ export class FileSystemFlywayCliProvider extends FlywayCliProvider {
     constructor(
         private flywayCliDirectory: string
     ) {
-        super()
+        super();
     }
 
     /**
@@ -24,89 +23,71 @@ export class FileSystemFlywayCliProvider extends FlywayCliProvider {
      *  If no suitable CLI candidates are found, throws an exception.
      */
     public async getFlywayCli(
-        flywayVersion: FlywayVersion
+        flywayVersion: string
     ): Promise<FlywayCli | undefined> {
 
-        const existingVersionDetails = await FlywayCliService.getFlywayCliDetails(this.flywayCliDirectory);
+        const existingVersion = await FlywayCliService.getFlywayCliDetails(this.flywayCliDirectory);
         
-        if(existingVersionDetails != null) {
-            if(existingVersionDetails.version == flywayVersion) {
+        if (existingVersion != null) {
+            if (existingVersion === flywayVersion) {
                 const executable = await FlywayCliService.getExecutableFromFlywayCliDirectory(this.flywayCliDirectory);
                 return new FlywayCli(
-                    existingVersionDetails.version,
+                    existingVersion,
                     FlywayCliSource.FILE_SYSTEM,
                     this.flywayCliDirectory,
-                    executable,
-                    existingVersionDetails.hash
+                    executable
                 );
-            }
-            else {
-                throw new Error(`Filesystem location is a Flyway CLI directory. However the Flyway CLI version is ${FlywayVersion[existingVersionDetails.version]} whereas the requested version is ${FlywayVersion[flywayVersion]}`);
+            } else {
+                throw new Error(`Filesystem location is a Flyway CLI directory. However the Flyway CLI version is ${existingVersion} whereas the requested version is ${flywayVersion}`);
             }
         }
 
         FileSystemFlywayCliProvider.logger.log(
-            `Provided directory ${this.flywayCliDirectory} is not a Flyway CLI. Searching nested directories to find a Flyway CLI candidate with version ${FlywayVersion[flywayVersion]}.`
+            `Provided directory ${this.flywayCliDirectory} is not a Flyway CLI. Searching nested directories to find a Flyway CLI candidate with version ${flywayVersion}.`
         );
         
-        const otherVersions: FlywayVersion[] = [];
-
+        const otherVersions: string[] = [];
         // Iterate through all child directories searching for CLI with matching version
-        const directories: string[] = (await readdir(this.flywayCliDirectory, { withFileTypes : true}))
+        const directories: string[] = (await readdir(this.flywayCliDirectory, { withFileTypes: true }))
             .filter(file => file.isDirectory())
             .map(dir => path.join(this.flywayCliDirectory, dir.name));
 
-        const targetFlywayCli = (await Promise.all(
+        const targetFlywayDir = (await Promise.all(
             directories.map(async directory => {
                 const details = await FlywayCliService.getFlywayCliDetails(directory);
-
-                if(details == null) {
-                    return undefined;
+                if (details == null) return undefined;
+                if (this.flywayCliVersionsMatch(details, flywayVersion)) {
+                    return directory;
+                } else {
+                    otherVersions.push(details);
                 }
-
-                if(this.flywayCliVersionsMatch(details.version, flywayVersion)) {
-                    return {
-                        directory,
-                        hash: details.hash
-                    };
-                }
-                else {
-                    otherVersions.push(details.version);
-                }
-                
             })
         )).find(directory => !!directory);
 
-
-        if(targetFlywayCli == null) {
-            throw otherVersions.length == 0
-                ? new Error(`No child directory of ${this.flywayCliDirectory} is a Flyway CLI with version ${FlywayVersion[flywayVersion]}.`)
-                : new Error(`No child directory of ${this.flywayCliDirectory} is a Flyway CLI with version ${FlywayVersion[flywayVersion]}. Only found versions: ${otherVersions.map(version => FlywayVersion[version])}.`);
-            // Suggest either enabling downloads or adding a new version to the source directory
+        if (targetFlywayDir == null) {
+            throw otherVersions.length === 0
+                ? new Error(`No child directory of ${this.flywayCliDirectory} is a Flyway CLI with version ${flywayVersion}.`)
+                : new Error(`No child directory of ${this.flywayCliDirectory} is a Flyway CLI with version ${flywayVersion}. Only found versions: ${otherVersions}.`);
         }
         
-        const executable = await FlywayCliService.getExecutableFromFlywayCliDirectory(targetFlywayCli.directory);
-
+        const executable = await FlywayCliService.getExecutableFromFlywayCliDirectory(targetFlywayDir);
         return new FlywayCli(
             flywayVersion,
             FlywayCliSource.FILE_SYSTEM,
-            targetFlywayCli.directory,
-            executable,
-            targetFlywayCli.hash
+            targetFlywayDir,
+            executable
         );
     }
 
-
     private flywayCliVersionsMatch(
-        version1: FlywayVersion | undefined, 
-        version2: FlywayVersion | undefined
+        version1: string | undefined,
+        version2: string | undefined
     ): boolean {    
-        FileSystemFlywayCliProvider.logger.log(`Comparing Flyway versions. Target version: ${version2 && FlywayVersion[version2]}. Found version: ${version1 && FlywayVersion[version1]}.`);
-
-        if(version1 == null || version2 == null) {
+        FileSystemFlywayCliProvider.logger.log(`Comparing Flyway versions. Target version: ${version2 ? version2 : "undefined"}. Found version: ${version1 ? version1 : "undefined"}.`);
+        if (version1 == null || version2 == null) {
             return false;
         }
-        return version1 == version2;
+        return version1 === version2;
     }
     
 }

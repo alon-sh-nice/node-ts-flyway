@@ -6,7 +6,6 @@ export type FlywayRawExecutionResponse = {
     response: string
 }
 
-
 export type FlywayMigrateResponse = {
     initialSchemaVersion: string | undefined,
     targetSchemaVersion: string | undefined,
@@ -22,6 +21,7 @@ export type FlywayMigrateResponse = {
     migrationsExecuted: number,
     success: boolean,
     flywayVersion: string,
+    flywayVersionInfo?: string, // added optional property for version metadata
     database: string,
     warnings: Array<any>,
     operation: FlywayCommand
@@ -31,6 +31,7 @@ export type FlywayCleanResponse = {
     schemasCleaned: Array<string>,
     schemasDropped: Array<string>,
     flywayVersion: string,
+    flywayVersionInfo?: string, // added optional property for version metadata
     database: string,
     warning: Array<any>,
     operation: FlywayCommand
@@ -53,6 +54,7 @@ export type FlywayInfoResponse = {
     }[],
     allSchemasEmpty: boolean,
     flywayVersion: string,
+    flywayVersionInfo?: string, // added optional property for version metadata
     database: string,
     warning: Array<any>,
     operation: FlywayCommand    
@@ -80,7 +82,7 @@ export type FlywayResponse = FlywayMigrateResponse | FlywayCleanResponse | Flywa
 
 export type FlywayErrorResponse = {
     errorCode?: string,
-    message?: string
+    message?: string,
     stackTrace?: string
 }
 
@@ -92,14 +94,13 @@ export type ParsedFlywayResponse<T extends FlywayResponse> = {
 export type NodeFlywayResponse<T extends FlywayResponse> = {
     success: boolean;
     error?: FlywayErrorResponse,
-    flywayResponse?: T
+    flywayResponse?: T,
     additionalDetails: {
         executionTime: number,
         flywayCli: {
             location: string,
             source: string, // To be converted to - keyof typeof FlywayCliSource
-            version: string, // To be converted to - keyof typeof FlywayVersion
-            hash: string
+            version: string
         }
     }
 }

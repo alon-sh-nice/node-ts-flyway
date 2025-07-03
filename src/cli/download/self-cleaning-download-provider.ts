@@ -1,5 +1,4 @@
 import _temp from "temp";
-import { FlywayVersion } from "../../internal/flyway-version";
 import { FlywayCli } from "../flyway-cli";
 import { FlywayCliProvider } from "../flyway-cli-provider";
 import { DownloadProvider } from "./download-provider";
@@ -15,7 +14,7 @@ export class SelfCleaningDownloadProvider extends FlywayCliProvider {
         super();
     }
 
-    public async getFlywayCli(flywayVersion: FlywayVersion): Promise<FlywayCli | undefined> {
+    public async getFlywayCli(flywayVersion: string): Promise<FlywayCli | undefined> {
         const temporaryDirectory = await this.temp.mkdir();
         const downloadProvider = new DownloadProvider(temporaryDirectory, this.downloader);
         return downloadProvider.getFlywayCli(flywayVersion);

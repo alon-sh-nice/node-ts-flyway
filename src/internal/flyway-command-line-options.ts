@@ -1,100 +1,71 @@
-import {isMap} from "util/types";
-import {CommandLineOptionMap, FlywayAdvancedConfig, FlywayBasicConfig, FlywayConfig} from "../types/types";
-import {platform} from "os";
-
-
+import { isMap } from "util/types";
+import { CommandLineOptionMap, FlywayAdvancedConfig, FlywayBasicConfig, FlywayConfig } from "../types/types";
+import { platform } from "os";
 
 export class FlywayCommandLineOptions {
-
-    constructor(
-        private readonly options: FlywayCommandLineOption[]
-    ) {
-        this.options = options;
-    }
+    constructor(private readonly options: FlywayCommandLineOption[]) {}
 
     public static build(config: FlywayConfig): FlywayCommandLineOptions {
         const options = CommandLineOptionGenerator.generateCommandLineOptions(config);
-
-        return new FlywayCommandLineOptions(
-            options
-        );
+        return new FlywayCommandLineOptions(options);
     }
 
     public getCommandLineOptions(): string[] {
         return this.options.map(option => option.convertToCommandLineString());
     }
 
-
     public convertToCommandLineString(): string {
         return this.options.map(option => option.convertToCommandLineString()).join(" ");
     }
-
-
 }
-
-
 
 interface FlywayCommandLineOption {
     convertToCommandLineString(): string;
 }
 
 class FlywayCommandLineStandardOption implements FlywayCommandLineOption {
-
-    public constructor(
-        private commandLineOptionKey: CommandLineOptionMap[keyof CommandLineOptionMap],
-        private commandLineOptionValue: string
-    ) {
-    }
+    constructor(
+        private key: CommandLineOptionMap[keyof CommandLineOptionMap],
+        private value: string
+    ) {}
 
     convertToCommandLineString(): string {
         const quote = platform() === "win32" ? '"' : "'";
-        return `-${this.commandLineOptionKey}=${quote}${this.commandLineOptionValue}${quote}`;
+        return `-${this.key}=${quote}${this.value}${quote}`;
     }
 }
 
-
 class FlywayCommandLineArrayOption<T> implements FlywayCommandLineOption {
-
-    public constructor(
-        private commandLineOptionKey: CommandLineOptionMap[keyof CommandLineOptionMap],
-        private commandLineOptionValues: T[]
-    ) {
-    }
+    constructor(
+        private key: CommandLineOptionMap[keyof CommandLineOptionMap],
+        private values: T[]
+    ) {}
 
     convertToCommandLineString(): string {
         const quote = platform() === "win32" ? '"' : "'";
-        return `-${this.commandLineOptionKey}=${quote}${this.commandLineOptionValues.join(',')}${quote}`;
+        return `-${this.key}=${quote}${this.values.join(",")}${quote}`;
     }
-
 }
 
 class FlywayCommandLineMapOption implements FlywayCommandLineOption {
-
-    public constructor(
-        private commandLineOptionKey: CommandLineOptionMap[keyof CommandLineOptionMap],
-        private commandLineOptionMapValues: Map<string, string>
-    ) {
-    }
+    constructor(
+        private key: CommandLineOptionMap[keyof CommandLineOptionMap],
+        private mapValues: Map<string, string>
+    ) {}
 
     convertToCommandLineString(): string {
-        const commandLineStringParts: string[] = [];
-        const quote = platform() === 'win32' ? '"' : "'";
-
-        // Throw if keys include whitespace
-        this.commandLineOptionMapValues.forEach((key, val) => {
-            commandLineStringParts.push(`${this.commandLineOptionKey}.${key}=${quote}${val}${quote}`);
+        const quote = platform() === "win32" ? '"' : "'";
+        const parts: string[] = [];
+        this.mapValues.forEach((val, mapKey) => {
+            parts.push(`${this.key}.${mapKey}=${quote}${val}${quote}`);
         });
-
-        return commandLineStringParts.join(" ");
+        return parts.join(" ");
     }
 }
 
-
 class CommandLineOptionGenerator {
-
     public static generateCommandLineOptions(config: FlywayConfig): FlywayCommandLineOption[] {
-        const mergedConfig: FlywayConfig = this.mergeConfigProperties(config);
-
+        const mergedConfig = this.mergeConfigProperties(config);
         const flatConfig = {
             url: mergedConfig.url,
             user: mergedConfig.user,
@@ -104,88 +75,41 @@ class CommandLineOptionGenerator {
             ...mergedConfig.advanced
         };
 
-        const configKeys = Object.keys(flatConfig) as (keyof FlywayBasicConfig | keyof FlywayAdvancedConfig)[];
-
-        return configKeys
-            .filter(
-                configKey => flatConfig[configKey] != undefined
-            )
-            .map(
-                configKey => this.build(
-                    flatConfig,
-                    configKey,
-                    commandLineOptionMap
-                )
-            )
+        const keys = Object.keys(flatConfig) as (keyof FlywayBasicConfig | keyof FlywayAdvancedConfig)[];
+        return keys
+            .filter(key => flatConfig[key] != null)
+            .map(key => this.build(flatConfig, key, commandLineOptionMap))
             .filter(this.isDefined);
-
     }
 
-    private static mergeConfigProperties(
-        config: FlywayConfig
-    ): FlywayConfig {
-
-        let defaultSchema: string | undefined;
-        let schemas: string[] | undefined;
-
-        if (config.defaultSchema == undefined || config.advanced?.schemas == undefined) {
-            defaultSchema = config.defaultSchema;
-            schemas = config.advanced?.schemas;
-        } else {
-            defaultSchema = config.defaultSchema;
-            schemas = config.advanced.schemas.filter(schema => schema != config.defaultSchema);
+    private static mergeConfigProperties(config: FlywayConfig): FlywayConfig {
+        let defaultSchema = config.defaultSchema;
+        let schemas = config.advanced?.schemas;
+        if (defaultSchema != null && schemas != null) {
+            schemas = schemas.filter(schema => schema !== defaultSchema);
         }
-
-        const basicConfig = {
-            ...config,
-            defaultSchema: defaultSchema
-        };
-
-        const advancedConfig = config.advanced != null
-            ? {
-                ...config.advanced,
-                schemas
-            }
-            : undefined;
-
-        return {...basicConfig, advanced: advancedConfig};
+        return { ...config, advanced: config.advanced ? { ...config.advanced, schemas } : undefined };
     }
-
 
     private static build<T extends FlywayBasicConfig | FlywayAdvancedConfig>(
         config: T,
-        configKey: keyof T,
-        commandLineOptionMappings: { [Property in (keyof T)]: string }
+        key: keyof T,
+        optionMapping: { [P in keyof T]: string }
     ): FlywayCommandLineOption | undefined {
-        const configPropertyValue = config[configKey];
-
-        if (configPropertyValue == undefined) {
-            return undefined;
-        }
-
-        if (Array.isArray(configPropertyValue)) {
-            return new FlywayCommandLineArrayOption(
-                commandLineOptionMappings[configKey],
-                configPropertyValue
-            );
-        } else if (isMap(configPropertyValue)) {
-            return new FlywayCommandLineMapOption(
-                commandLineOptionMappings[configKey],
-                configPropertyValue as any // TODO - fix explicit any
-            );
+        const value = config[key];
+        if (value == null) return undefined;
+        if (Array.isArray(value)) {
+            return new FlywayCommandLineArrayOption(optionMapping[key], value);
+        } else if (isMap(value)) {
+            return new FlywayCommandLineMapOption(optionMapping[key], value as Map<string, string>);
         } else {
-            return new FlywayCommandLineStandardOption(
-                commandLineOptionMappings[configKey],
-                `${configPropertyValue}`
-            );
+            return new FlywayCommandLineStandardOption(optionMapping[key], `${value}`);
         }
-
     }
 
     private static isDefined<T>(arg: T | undefined): arg is T {
-        return arg != undefined;
+        return arg !== undefined;
     }
-
 }
 
 const commandLineOptionMap: CommandLineOptionMap = {
@@ -194,54 +118,49 @@ const commandLineOptionMap: CommandLineOptionMap = {
     password: "password",
     defaultSchema: "defaultSchema",
     migrationLocations: "locations",
-
-
-    driver:"driver",
-    connectRetries:"connectRetries",
-    connectRetriesInterval:"connectRetriesInterval",
-    initSql:"initSql"    ,
-    callbacks:"callbacks",
-    configFileEncoding:"configFileEncoding",
-    configFiles:"configFiles",
-    migrationEncoding:"encoding",
-    groupPendingMigrations:"group",
-    installedBy:"installedBy",
-    jarDirs:"jarDirs",
-    failOnMissingMigrationLocations:"failOnMissingLocations",
-    lockRetryCount:"lockRetryCount",
-    mixed:"mixed",
-    applyNewMigrationsOutOfOrder:"outOfOrder",
-    skipDefaultCallbacks:"skipDefaultCallbacks",
-    skipDefaultResolvers:"skipDefaultResolvers",
-    schemaHistoryTable:"table",
-    schemaHistoryTableSpace:"tableSpace",
-    target:"target",
-    validateMigrationNaming:"validateMigrationNaming",
-    validateOnMigrate:"validateOnMigrate",
-    workingDirectory:"workingDirectory",
-    createSchemas:"createSchemas",
-    schemas:"schemas",
-    baselineDescription:"baselineDescription",
-    baselineOnMigrate:"baselineOnMigrate",
-    baselineVersion:"baselineVersion",
-    cleanDisabled:"cleanDisabled",
-    cleanOnValidationError:"cleanOnValidationError",
-    ignoreMigrationPatterns:"ignoreMigrationPatterns",
-    repeatableSqlMigrationPrefix:"repeatableSqlMigrationPrefix",
-    resolvers:"resolvers",
-    sqlMigrationPrefix:"sqlMigrationPrefix",
-    sqlMigrationSeparator:"sqlMigrationSeparator",
-    sqlMigrationSuffixes:"sqlMigrationSuffixes",
-    placeHolderReplacement:"placeHolderReplacement",
-    placeHolderPrefix:"placeHolderPrefix",
-    placeHolderSuffix:"placeHolderSuffix",
-    placeHolders:"placeHolders",
-    placeHolderSeparator:"placeHolderSeparator",
-    scriptPlaceHolderPrefix:"scriptPlaceHolderPrefix",
-    scriptPlaceHolderSuffix:"scriptPlaceHolderSuffix",
-    edition:"edition",
-    postgresqlTransactionLock:"postgresqlTransactionLock"
-}
-
-
-
+    driver: "driver",
+    connectRetries: "connectRetries",
+    connectRetriesInterval: "connectRetriesInterval",
+    initSql: "initSql",
+    callbacks: "callbacks",
+    configFileEncoding: "configFileEncoding",
+    configFiles: "configFiles",
+    migrationEncoding: "encoding",
+    groupPendingMigrations: "group",
+    installedBy: "installedBy",
+    jarDirs: "jarDirs",
+    failOnMissingMigrationLocations: "failOnMissingLocations",
+    lockRetryCount: "lockRetryCount",
+    mixed: "mixed",
+    applyNewMigrationsOutOfOrder: "outOfOrder",
+    skipDefaultCallbacks: "skipDefaultCallbacks",
+    skipDefaultResolvers: "skipDefaultResolvers",
+    schemaHistoryTable: "table",
+    schemaHistoryTableSpace: "tableSpace",
+    target: "target",
+    validateMigrationNaming: "validateMigrationNaming",
+    validateOnMigrate: "validateOnMigrate",
+    workingDirectory: "workingDirectory",
+    createSchemas: "createSchemas",
+    schemas: "schemas",
+    baselineDescription: "baselineDescription",
+    baselineOnMigrate: "baselineOnMigrate",
+    baselineVersion: "baselineVersion",
+    cleanDisabled: "cleanDisabled",
+    cleanOnValidationError: "cleanOnValidationError",
+    ignoreMigrationPatterns: "ignoreMigrationPatterns",
+    repeatableSqlMigrationPrefix: "repeatableSqlMigrationPrefix",
+    resolvers: "resolvers",
+    sqlMigrationPrefix: "sqlMigrationPrefix",
+    sqlMigrationSeparator: "sqlMigrationSeparator",
+    sqlMigrationSuffixes: "sqlMigrationSuffixes",
+    placeHolderReplacement: "placeHolderReplacement",
+    placeHolderPrefix: "placeHolderPrefix",
+    placeHolderSuffix: "placeHolderSuffix",
+    placeHolders: "placeHolders",
+    placeHolderSeparator: "placeHolderSeparator",
+    scriptPlaceHolderPrefix: "scriptPlaceHolderPrefix",
+    scriptPlaceHolderSuffix: "scriptPlaceHolderSuffix",
+    edition: "edition",
+    postgresqlTransactionLock: "postgresqlTransactionLock"
+};

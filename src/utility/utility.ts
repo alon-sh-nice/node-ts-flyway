@@ -1,8 +1,8 @@
 import { constants as FS_CONSTANTS } from "fs";
 import { access, readdir, stat } from "fs/promises";
 import { join } from "path";
-import {exec, ExecOptions} from "node:child_process";
-import {getLogger} from "./logger";
+import { exec, ExecOptions } from "node:child_process";
+import { getLogger } from "./logger";
 
 export type OperatingSystem = "macosx" | "linux" | "windows";
 export type CpuArchitecture = "arm" | "arm64" | "ia32" | "mips" | "mipsel" | "ppc" | "ppc64" | "s390" | "s390x" | "x64";
@@ -52,8 +52,13 @@ export const canExecuteFile = async (path: string, system: OperatingSystem) => {
 }
 
 export const hasFullPermissionsOnFile = async (path: string) => {
-    // TODO = implement this
-    return true;
+    try {
+        // Check for read, write, and execute permissions
+        await access(path, FS_CONSTANTS.R_OK | FS_CONSTANTS.W_OK | FS_CONSTANTS.X_OK);
+        return true;
+    } catch {
+        return false;
+    }
 }
 
 export const isDefined = <T>(argument: T | undefined): argument is T => {
@@ -80,7 +85,7 @@ export type ExecutionResponse = {
 
 
 export const execute = async (command: string, options: ExecOptions): Promise<ExecutionResponse> => {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve, _) => {
         try {
             exec(
                 command,
@@ -101,4 +106,3 @@ export const execute = async (command: string, options: ExecOptions): Promise<Ex
         }
     });
 }
-
